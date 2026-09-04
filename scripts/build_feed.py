@@ -53,6 +53,12 @@ MEDIA_COMPOSITION_URL = (
 # geändert): bekannter Fallback-Wert für Maloney.
 FALLBACK_SHOW_ID = "A00361"
 
+# Bekanntes, korrektes quadratisches Cover (aus dem dedizierten
+# "podcastImageUrl"-Feld der SRF-API) - wird für die Cover-Grafik des
+# gesamten Feeds verwendet, unabhängig davon, welches (teils nicht
+# quadratische) Bild einzelne Episoden mitbringen.
+SHOW_COVER_IMAGE_URL = "https://download-media.srf.ch/world/image/audio/2019/10/086fc4382da7498f913dab28ae92501c.jpg"
+
 SHOW_TITLE = "Maloney"
 SHOW_DESCRIPTION = (
     "Die haarsträubenden Fälle des Philip Maloney. In der Hörspiel-Reihe "
@@ -308,12 +314,12 @@ def ms_to_hms(ms):
 def build_rss(cache, feed_self_url):
     eps = sorted(episodes_only(cache).values(), key=lambda e: e.get("date") or "", reverse=True)
     eps = eps[:FEED_MAX_ITEMS]
-    cover = next((e["image_url"] for e in eps if e.get("image_url")), "")
+    cover = SHOW_COVER_IMAGE_URL
 
     items = []
     for ep in eps:
         dur = ms_to_hms(ep.get("duration_ms"))
-        img = ep.get("image_url") or cover
+        img = SHOW_COVER_IMAGE_URL
         items.append(f"""
     <item>
       <title>{escape(ep.get('title') or SHOW_TITLE)}</title>
