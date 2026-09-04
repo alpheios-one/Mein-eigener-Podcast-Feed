@@ -63,7 +63,7 @@ SHOW_LANGUAGE = "de-ch"
 SHOW_AUTHOR = "Radio SRF 3"
 
 REQUEST_DELAY = 0.3
-MAX_PAGES_FIRST_RUN = 60     # grosszügig für ~400 Folgen bei ~20/Seite
+MAX_PAGES_FIRST_RUN = 20     # 20 Seiten à ~20 Folgen deckt die 1-Jahres-Verfügbarkeit ab
 MAX_PAGES_INCREMENTAL = 5    # normaler Lauf: nur die neusten Seiten prüfen
 FEED_MAX_ITEMS = int(os.environ.get("FEED_MAX_ITEMS", "500"))
 
@@ -149,17 +149,19 @@ def fetch_audio_url(uid):
     data, status = http_get_json(MEDIA_COMPOSITION_URL.format(uid=uid))
     if not data:
         print(f"    mediaComposition {uid}: {status}")
-        return None, None
+        return None, None, None
     try:
         chapter = data["chapterList"][0]
+        block_reason = chapter.get("blockReason")
+        if block_reason:
+            return None, None, block_reason
         audio_url, res = pick_audio_resource(chapter.get("resourceList") or [])
         if not audio_url:
-            print(f"    {uid}: keine Audio-Ressource gefunden")
-            return None, None
-        return audio_url, (res or {}).get("byteLength")
+            return None, None, "NO_RESOURCE"
+        return audio_url, (res or {}).get("byteLength"), None
     except (KeyError, IndexError, TypeError) as exc:
         print(f"    {uid}: unerwartete Struktur ({exc})")
-        return None, None
+        return None, None, "PARSE_ERROR"
 
 
 # --------------------------------------------------------------------------
@@ -183,7 +185,10 @@ def save_cache(cache):
 
 
 def episodes_only(cache):
-    return {k: v for k, v in cache.items() if k != "_meta"}
+    return {
+        k: v for k, v in cache.items()
+        if k != "_meta" and not v.get("blocked")
+    }
 
 
 def purge_future_dated(cache):
@@ -229,8 +234,12 @@ def sync_episodes(cache, show_id):
             if not uid or uid in cache:
                 continue
 
-            audio_url, length_bytes = fetch_audio_url(uid)
+            audio_url, length_bytes, block_reason = fetch_audio_url(uid)
             time.sleep(REQUEST_DELAY)
+            if block_reason:
+                cache[uid] = {"id": uid, "title": entry.get("title"), "blocked": True, "reason": block_reason}
+                print(f"    Gesperrt ({block_reason}, dauerhaft übersprungen): {entry.get('title')}")
+                continue
             if not audio_url:
                 continue
 
