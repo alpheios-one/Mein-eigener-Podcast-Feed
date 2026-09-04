@@ -324,6 +324,9 @@ def crawl(cache):
         uid, neighbors = fetch_episode_page(slug, audi_id)
         fetched_this_run += 1
         time.sleep(REQUEST_DELAY)
+        print(f"    -> UUID: {uid or 'nicht gefunden'}, {len(neighbors)} Verweis(e) auf andere Folgen")
+        if neighbors:
+            print(f"    -> Verweise: {[f'{s}?id={a}' for s, a in neighbors]}")
 
         if uid and uid not in known_uuids:
             details = fetch_episode_details(uid)
