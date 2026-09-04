@@ -233,6 +233,19 @@ def episodes_only(cache):
     return {k: v for k, v in cache.items() if k != "_meta"}
 
 
+def purge_future_dated(cache):
+    """Entfernt Cache-Einträge mit einem Sendedatum in der Zukunft - z. B.
+    Reste aus einer früheren Skriptversion, die 'Vorschau'-Folgen
+    faelschlich uebernommen hat, bevor sie tatsaechlich ausgestrahlt
+    wurden."""
+    now_iso = datetime.now(timezone.utc).isoformat()
+    stale = [k for k, v in episodes_only(cache).items() if (v.get("date") or "") > now_iso]
+    for k in stale:
+        print(f"  Entferne verfrühten Cache-Eintrag: {cache[k].get('title')} ({cache[k].get('date')})")
+        del cache[k]
+    return len(stale)
+
+
 # --------------------------------------------------------------------------
 # Crawl
 # --------------------------------------------------------------------------
@@ -417,6 +430,10 @@ def main():
 
     cache = load_cache()
     print(f"Cache geladen: {len(episodes_only(cache))} Episoden bekannt")
+
+    removed = purge_future_dated(cache)
+    if removed:
+        print(f"{removed} verfrühte(n) Eintrag/Einträge bereinigt")
 
     print("Suche neu ausgestrahlte Folgen (Vorschau-Abgleich) ...")
     discover_forward(cache)
