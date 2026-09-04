@@ -145,6 +145,19 @@ def pick_audio_resource(resource_list):
     return resource_list[0].get("url"), resource_list[0]
 
 
+def http_head_content_length(url):
+    """Ermittelt die Dateigrösse per HTTP HEAD (Content-Length-Header),
+    falls die mediaComposition-Antwort selbst keine Grösse liefert."""
+    try:
+        req = urllib.request.Request(url, method="HEAD", headers={"User-Agent": USER_AGENT})
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            length = resp.headers.get("Content-Length")
+            return int(length) if length else None
+    except Exception as exc:  # noqa: BLE001
+        print(f"    HEAD-Request fehlgeschlagen für {url}: {exc}")
+        return None
+
+
 def fetch_audio_url(uid):
     data, status = http_get_json(MEDIA_COMPOSITION_URL.format(uid=uid))
     if not data:
@@ -158,7 +171,10 @@ def fetch_audio_url(uid):
         audio_url, res = pick_audio_resource(chapter.get("resourceList") or [])
         if not audio_url:
             return None, None, "NO_RESOURCE"
-        return audio_url, (res or {}).get("byteLength"), None
+        length_bytes = (res or {}).get("byteLength")
+        if not length_bytes:
+            length_bytes = http_head_content_length(audio_url)
+        return audio_url, length_bytes, None
     except (KeyError, IndexError, TypeError) as exc:
         print(f"    {uid}: unerwartete Struktur ({exc})")
         return None, None, "PARSE_ERROR"
@@ -337,6 +353,28 @@ def build_rss(cache, feed_self_url):
 """
 
 
+def backfill_missing_lengths(cache, max_requests=60):
+    """Ergänzt bei bereits gecachten Folgen die fehlende Dateigrösse
+    (Content-Length), z. B. für Folgen, die vor dieser Skript-Version
+    hinzugefügt wurden."""
+    todo = [
+        (uid, ep) for uid, ep in episodes_only(cache).items()
+        if not ep.get("audio_length_bytes") and ep.get("audio_url")
+    ]
+    if not todo:
+        return 0
+    print(f"Ergänze Dateigrösse für {min(len(todo), max_requests)} von {len(todo)} Folge(n) ohne Längenangabe ...")
+    done = 0
+    for uid, ep in todo[:max_requests]:
+        length = http_head_content_length(ep["audio_url"])
+        time.sleep(REQUEST_DELAY)
+        if length:
+            cache[uid]["audio_length_bytes"] = length
+            done += 1
+    print(f"  {done} Dateigrösse(n) ergänzt.")
+    return done
+
+
 # --------------------------------------------------------------------------
 # main
 # --------------------------------------------------------------------------
@@ -362,6 +400,7 @@ def main():
     print(f"Show-ID: {show_id}")
 
     sync_episodes(cache, show_id)
+    backfill_missing_lengths(cache)
     save_cache(cache)
 
     eps = episodes_only(cache)
