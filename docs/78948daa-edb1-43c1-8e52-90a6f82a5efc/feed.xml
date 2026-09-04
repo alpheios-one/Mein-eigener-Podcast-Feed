@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+     xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"
+     xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Maloney</title>
+    <description>Die haarsträubenden Fälle des Philip Maloney. In der Hörspiel-Reihe ermittelt Privatdetektiv Maloney mit Schalk, Charme und unverkennbarer Raubeinigkeit.</description>
+    <link>https://www.srf.ch/audio/maloney</link>
+    <language>de-ch</language>
+    <generator>maloney-private-feed</generator>
+    <itunes:author>Radio SRF 3</itunes:author>
+    <itunes:summary>Die haarsträubenden Fälle des Philip Maloney. In der Hörspiel-Reihe ermittelt Privatdetektiv Maloney mit Schalk, Charme und unverkennbarer Raubeinigkeit.</itunes:summary>
+    <itunes:explicit>false</itunes:explicit>
+    <itunes:category text="Society &amp; Culture"/>
+    <atom:link href="https://alpheios-one.github.io/Mein-eigener-Podcast-Feed/78948daa-edb1-43c1-8e52-90a6f82a5efc/feed.xml" rel="self" type="application/rss+xml"/>
+
+  </channel>
+</rss>
