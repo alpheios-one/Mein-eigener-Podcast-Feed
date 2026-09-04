@@ -1,41 +1,32 @@
 #!/usr/bin/env python3
 """
-Privater Podcast-Feed für die SRF-Hörspielreihe "Maloney" (Version 4).
+Privater Podcast-Feed für die SRF-Hörspielreihe "Maloney" (Version 7 - final).
 
-Hintergrund
+Datenquelle
 -----------
-Die Sendungsseite https://www.srf.ch/audio/maloney zeigt zwei Bereiche:
-  - "Vorschau kommender Folgen": noch nicht ausgestrahlt, wird per
-    JavaScript geladen, ist aber teilweise (mit temporären UUIDs) bereits
-    im rohen HTML eingebettet - nützlich nur, um TITEL und AUDI-CODE
-    kommender Folgen im Voraus zu kennen (nicht für den Feed selbst, da
-    die MP3-Datei zum Ausstrahlungszeitpunkt noch nicht uebre online ist).
-  - "Alle Folgen" (das eigentliche Archiv, ca. 400 Folgen): jede Folge hat
-    eine eigene, statische (nicht JS-abhängige) Seite unter
-    /audio/maloney/<slug>?id=AUDI<Datum>_NR_<Nr>, die u. a. einen Verweis
-    auf die 10 jeweils vorangehenden (älteren) Folgen enthält
-    ("Mehr von «Maloney»"). Über diese Verkettung lässt sich rückwärts
-    durchs ganze Archiv wandern.
+SRF betreibt eine öffentliche, unauthentifizierte JSON-API, die auch der
+eigene Webplayer benutzt, um die "Alle Folgen"-Liste nachzuladen:
 
-Strategie dieses Scripts
-------------------------
-1. Aus einem bekannten "Startpunkt" (gespeichert in data/episodes_cache.json
-   unter "_meta.newest_page", oder beim allerersten Lauf ein fest
-   hinterlegter Bootstrap-Startpunkt) rückwärts durch die "Mehr von"-Kette
-   wandern und alle noch unbekannten Folgen einsammeln (begrenzt pro Lauf,
-   damit die Laufzeit nicht ausufert - läuft über mehrere Tage vollständig
-   durch).
-2. Für neue, noch nicht im Cache befindliche kommende Folgen (aus der
-   "Vorschau", deren Sendedatum inzwischen in der Vergangenheit liegt) wird
-   die Archiv-URL aus dem Titel vorhergesagt (deutsche Slug-Regeln) und
-   geprüft, ob die Seite existiert. Klappt das nicht, wird die Folge
-   spätestens dann gefunden, wenn eine spätere Folge in ihrer "Mehr
-   von"-Liste auf sie zurückverweist (selbstheilend).
-3. Pro gefundener Folge liefert die öffentliche, unauthentifizierte
-   SRG-SSR "mediaComposition"-API (dieselbe, die der SRF-Webplayer nutzt)
-   Titel, Beschreibung, Datum, echte MP3-URL und Bild.
-4. Ergebnis wird in data/episodes_cache.json zwischengespeichert und als
-   RSS nach docs/<SECRET_TOKEN>/feed.xml geschrieben.
+    https://www.srf.ch/aron/api/audio/shows/<SHOW-ID>/latestEpisodes?page=<N>
+
+Diese liefert paginiert (neueste zuerst) Titel, Kurzbeschreibung, komplette
+Besetzungsliste, Sendedatum, Laufzeit und die interne Asset-UUID jeder
+Folge. Für die echte, abspielbare MP3-URL wird pro neuer Folge zusätzlich
+die ebenfalls öffentliche SRG-SSR "mediaComposition"-API abgefragt
+(dieselbe, die für Play-SRF-Widgets genutzt wird).
+
+Ablauf
+------
+1. Show-ID (z. B. "A00361") aus dem Meta-Tag der Sendungsseite lesen -
+   damit ist das Script nicht auf eine hartcodierte ID angewiesen.
+2. Seite für Seite durch latestEpisodes blättern (neueste zuerst). Sobald
+   eine Seite ausschliesslich bereits bekannte Folgen enthält, wird die
+   Paginierung abgebrochen (inkrementelle Läufe sind dadurch sehr schnell).
+   Beim allerersten Lauf (leerer Cache) wird bis zum Ende des Archivs
+   geblättert (Sicherheitslimit siehe MAX_PAGES).
+3. Pro neuer Folge die echte MP3-URL über mediaComposition holen.
+4. Ergebnis in data/episodes_cache.json cachen und als RSS nach
+   docs/<SECRET_TOKEN>/feed.xml schreiben.
 """
 
 import json
@@ -49,17 +40,18 @@ from datetime import datetime, timezone
 from email.utils import format_datetime
 from xml.sax.saxutils import escape
 
-SHOW_BASE_URL = "https://www.srf.ch/audio/maloney"
+SHOW_PAGE_URL = "https://www.srf.ch/audio/maloney"
+LATEST_EPISODES_URL_TEMPLATE = (
+    "https://www.srf.ch/aron/api/audio/shows/{show_id}/latestEpisodes?page={page}"
+)
 MEDIA_COMPOSITION_URL = (
     "https://il.srgssr.ch/integrationlayer/2.0/mediaComposition/byUrn/"
     "urn:srf:audio:{uid}.json?onlyChapters=false&vector=portalplay"
 )
 
-# Bootstrap-Startpunkt für den allerersten Lauf (leerer Cache). Kann bei
-# Bedarf durch eine aktuellere Folgen-URL ersetzt werden - danach speichert
-# das Script seinen eigenen Fortschritt selbst und braucht das nicht mehr.
-BOOTSTRAP_SLUG = "jugendsuenden"
-BOOTSTRAP_AUDI_ID = "AUDI20260830_NR_0007"
+# Falls die Show-ID nicht dynamisch gefunden wird (z. B. Seitenaufbau
+# geändert): bekannter Fallback-Wert für Maloney.
+FALLBACK_SHOW_ID = "A00361"
 
 SHOW_TITLE = "Maloney"
 SHOW_DESCRIPTION = (
@@ -71,7 +63,8 @@ SHOW_LANGUAGE = "de-ch"
 SHOW_AUTHOR = "Radio SRF 3"
 
 REQUEST_DELAY = 0.3
-MAX_PAGE_FETCHES_PER_RUN = 80   # Sicherheitslimit gegen ausufernde Laufzeit
+MAX_PAGES_FIRST_RUN = 60     # grosszügig für ~400 Folgen bei ~20/Seite
+MAX_PAGES_INCREMENTAL = 5    # normaler Lauf: nur die neusten Seiten prüfen
 FEED_MAX_ITEMS = int(os.environ.get("FEED_MAX_ITEMS", "500"))
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -82,19 +75,6 @@ USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/124.0 Safari/537.36"
 )
-
-UUID_RE = r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
-AUDI_RE = r"AUDI\d{8}_NR_\d+"
-EPISODE_LINK_RE = re.compile(r"/audio/maloney/([a-z0-9\-]+)\?id=(" + AUDI_RE + r")")
-PREVIEW_URN_RE = re.compile(r"urn:srf:(?:ais:)?audio:(" + UUID_RE + r")")
-
-UMLAUT_MAP = str.maketrans({"ä": "ae", "ö": "oe", "ü": "ue", "ß": "ss"})
-
-
-def slugify(title: str) -> str:
-    s = title.lower().translate(UMLAUT_MAP)
-    s = re.sub(r"[^a-z0-9]+", "-", s)
-    return s.strip("-")
 
 
 # --------------------------------------------------------------------------
@@ -111,7 +91,6 @@ def http_get(url, accept=None, timeout=30):
 
 
 def http_get_text(url):
-    """(text|None, status)."""
     try:
         return http_get(url, accept="text/html").decode("utf-8", errors="replace"), "OK"
     except urllib.error.HTTPError as exc:
@@ -130,43 +109,27 @@ def http_get_json(url):
 
 
 # --------------------------------------------------------------------------
-# Episodenseite parsen
+# Show-ID
 # --------------------------------------------------------------------------
 
-def find_meta(html, name):
+def find_show_id():
+    html, status = http_get_text(SHOW_PAGE_URL)
+    if not html:
+        print(f"  Sendungsseite nicht erreichbar ({status}), nutze Fallback-ID")
+        return FALLBACK_SHOW_ID
     for pat in (
-        rf'<meta[^>]+name=["\']{re.escape(name)}["\'][^>]*content=["\']([^"\']*)["\']',
-        rf'<meta[^>]+content=["\']([^"\']*)["\'][^>]*name=["\']{re.escape(name)}["\']',
+        r'<meta[^>]+name=["\']srf:content:id["\'][^>]*content=["\']([^"\']+)["\']',
+        r'<meta[^>]+content=["\']([^"\']+)["\'][^>]*name=["\']srf:content:id["\']',
     ):
         m = re.search(pat, html)
         if m:
             return m.group(1)
-    return None
-
-
-def fetch_episode_page(slug, audi_id):
-    """Liefert (uuid, neighbor_list) oder (None, []) falls Seite nicht existiert."""
-    url = f"{SHOW_BASE_URL}/{slug}?id={audi_id}"
-    html, status = http_get_text(url)
-    if not html:
-        print(f"    Seite nicht erreichbar ({status}): {url}")
-        return None, []
-    uid = find_meta(html, "pdp:ais:id")
-    if not uid or not re.fullmatch(UUID_RE, uid):
-        print(f"    Keine gültige UUID (pdp:ais:id) auf {url} gefunden")
-        return None, []
-    neighbors = []
-    seen = set()
-    for m in EPISODE_LINK_RE.finditer(html):
-        key = (m.group(1), m.group(2))
-        if key not in seen and key != (slug, audi_id):
-            seen.add(key)
-            neighbors.append(key)
-    return uid, neighbors
+    print("  Show-ID nicht im HTML gefunden, nutze Fallback-ID")
+    return FALLBACK_SHOW_ID
 
 
 # --------------------------------------------------------------------------
-# Episodendetails über die öffentliche SRG-Media-API
+# Episodendetails über die öffentliche SRG-Media-API (echte MP3-URL)
 # --------------------------------------------------------------------------
 
 def pick_audio_resource(resource_list):
@@ -182,31 +145,21 @@ def pick_audio_resource(resource_list):
     return resource_list[0].get("url"), resource_list[0]
 
 
-def fetch_episode_details(uid):
+def fetch_audio_url(uid):
     data, status = http_get_json(MEDIA_COMPOSITION_URL.format(uid=uid))
     if not data:
         print(f"    mediaComposition {uid}: {status}")
-        return None
+        return None, None
     try:
         chapter = data["chapterList"][0]
         audio_url, res = pick_audio_resource(chapter.get("resourceList") or [])
         if not audio_url:
-            print(f"    {uid}: keine Audio-Ressource")
-            return None
-        return {
-            "id": uid,
-            "title": chapter.get("title") or SHOW_TITLE,
-            "lead": chapter.get("lead") or "",
-            "description": chapter.get("description") or chapter.get("lead") or "",
-            "date": chapter.get("date"),
-            "audio_url": audio_url,
-            "audio_length_bytes": (res or {}).get("byteLength"),
-            "duration_ms": chapter.get("duration"),
-            "image_url": (data.get("episode") or {}).get("imageUrl") or chapter.get("imageUrl"),
-        }
+            print(f"    {uid}: keine Audio-Ressource gefunden")
+            return None, None
+        return audio_url, (res or {}).get("byteLength")
     except (KeyError, IndexError, TypeError) as exc:
         print(f"    {uid}: unerwartete Struktur ({exc})")
-        return None
+        return None, None
 
 
 # --------------------------------------------------------------------------
@@ -234,10 +187,8 @@ def episodes_only(cache):
 
 
 def purge_future_dated(cache):
-    """Entfernt Cache-Einträge mit einem Sendedatum in der Zukunft - z. B.
-    Reste aus einer früheren Skriptversion, die 'Vorschau'-Folgen
-    faelschlich uebernommen hat, bevor sie tatsaechlich ausgestrahlt
-    wurden."""
+    """Räumt Reste einer früheren Skriptversion auf (Folgen, die vor ihrer
+    Ausstrahlung fälschlich übernommen wurden)."""
     now_iso = datetime.now(timezone.utc).isoformat()
     stale = [k for k, v in episodes_only(cache).items() if (v.get("date") or "") > now_iso]
     for k in stale:
@@ -247,106 +198,66 @@ def purge_future_dated(cache):
 
 
 # --------------------------------------------------------------------------
-# Crawl
+# Sync über latestEpisodes
 # --------------------------------------------------------------------------
 
-def discover_forward(cache):
-    """Findet neu ausgestrahlte Folgen, die noch nicht im Archiv-Crawl
-    aufgetaucht sind: scannt die 'Vorschau kommender Folgen' (teilweise
-    schon im rohen HTML der Sendungsseite eingebettet) und übernimmt jene
-    Einträge direkt, deren Sendedatum inzwischen in der Vergangenheit
-    liegt. Aktualisiert auch den gespeicherten 'newest_page'-Ankerpunkt,
-    damit der Rückwärts-Crawl beim nächsten Lauf von dort aus die Brücke
-    zum Archiv schlagen kann."""
-    html, status = http_get_text(SHOW_BASE_URL)
-    if not html:
-        print(f"  Vorschau-Scan: Sendungsseite nicht erreichbar ({status})")
-        return
+def sync_episodes(cache, show_id):
+    is_first_run = len(episodes_only(cache)) == 0
+    max_pages = MAX_PAGES_FIRST_RUN if is_first_run else MAX_PAGES_INCREMENTAL
+    print(f"Synchronisiere über latestEpisodes (Show-ID {show_id}), "
+          f"max. {max_pages} Seite(n) in diesem Lauf ...")
 
-    known_uuids = set(episodes_only(cache).keys())
-    candidates = [u for u in dict.fromkeys(PREVIEW_URN_RE.findall(html)) if u not in known_uuids]
-    if not candidates:
-        print("  Vorschau-Scan: keine neuen Kandidaten")
-        return
-    print(f"  Vorschau-Scan: {len(candidates)} neue Kandidat(en)")
-
-    meta = cache.setdefault("_meta", {})
-    newest_date = meta.get("newest_date")
-    now_iso = datetime.now(timezone.utc).isoformat()
-
-    for uid in candidates:
-        details = fetch_episode_details(uid)
+    new_count = 0
+    page = 1
+    while page <= max_pages:
+        url = LATEST_EPISODES_URL_TEMPLATE.format(show_id=show_id, page=page)
+        data, status = http_get_json(url)
         time.sleep(REQUEST_DELAY)
-        if not details:
-            continue
-        ep_date = details.get("date") or ""
-        if ep_date > now_iso:
-            print(f"    {details['title']}: erst am {ep_date} - noch nicht übernommen")
-            continue
-        cache[uid] = details
-        known_uuids.add(uid)
-        print(f"    Neu (Vorschau->aktuell): {details['title']} ({ep_date})")
-        if not newest_date or ep_date > newest_date:
-            newest_date = ep_date
-            audi_match = re.search(AUDI_RE, details.get("audio_url") or "")
-            if audi_match:
-                meta["newest_page"] = {
-                    "slug": slugify(details["title"]),
-                    "audi_id": audi_match.group(0),
-                }
-            meta["newest_date"] = newest_date
+        if not data:
+            print(f"  Seite {page}: {status} - Ende der Liste erreicht")
+            break
+        if not isinstance(data, list) or not data:
+            print(f"  Seite {page}: leer - Ende der Liste erreicht")
+            break
 
+        page_new = 0
+        for entry in data:
+            uid = entry.get("assetId")
+            if not uid:
+                m = re.search(r"[0-9a-fA-F-]{36}$", entry.get("assetUrn") or "")
+                uid = m.group(0) if m else None
+            if not uid or uid in cache:
+                continue
 
-def crawl(cache):
-    fetched_this_run = 0
-    known_uuids = set(episodes_only(cache).keys())
-    known_pages = set()  # (slug, audi_id) bereits besucht in diesem Lauf
-
-    meta = cache.setdefault("_meta", {})
-    queue = []
-
-    newest = meta.get("newest_page")
-    if newest:
-        queue.append((newest["slug"], newest["audi_id"]))
-    else:
-        queue.append((BOOTSTRAP_SLUG, BOOTSTRAP_AUDI_ID))
-        print(f"Kein gespeicherter Startpunkt - nutze Bootstrap: {BOOTSTRAP_SLUG}")
-
-    newest_date = meta.get("newest_date")
-
-    while queue and fetched_this_run < MAX_PAGE_FETCHES_PER_RUN:
-        slug, audi_id = queue.pop(0)
-        if (slug, audi_id) in known_pages:
-            continue
-        known_pages.add((slug, audi_id))
-
-        print(f"  Seite: /{slug}?id={audi_id}")
-        uid, neighbors = fetch_episode_page(slug, audi_id)
-        fetched_this_run += 1
-        time.sleep(REQUEST_DELAY)
-        print(f"    -> UUID: {uid or 'nicht gefunden'}, {len(neighbors)} Verweis(e) auf andere Folgen")
-        if neighbors:
-            print(f"    -> Verweise: {[f'{s}?id={a}' for s, a in neighbors]}")
-
-        if uid and uid not in known_uuids:
-            details = fetch_episode_details(uid)
+            audio_url, length_bytes = fetch_audio_url(uid)
             time.sleep(REQUEST_DELAY)
-            if details:
-                cache[uid] = details
-                known_uuids.add(uid)
-                print(f"    Neu: {details['title']} ({details.get('date')})")
-                if not newest_date or (details.get("date") or "") > newest_date:
-                    newest_date = details.get("date")
-                    meta["newest_page"] = {"slug": slug, "audi_id": audi_id}
-                    meta["newest_date"] = newest_date
+            if not audio_url:
+                continue
 
-        for n_slug, n_audi in neighbors:
-            if (n_slug, n_audi) not in known_pages:
-                queue.append((n_slug, n_audi))
+            cache[uid] = {
+                "id": uid,
+                "title": entry.get("title") or SHOW_TITLE,
+                "lead": entry.get("lead") or "",
+                "description": entry.get("text") or entry.get("lead") or "",
+                "date": entry.get("date") or entry.get("publishedAt"),
+                "audio_url": audio_url,
+                "audio_length_bytes": length_bytes,
+                "duration_ms": entry.get("durationMs"),
+                "image_url": entry.get("squareImageUrl") or entry.get("bannerImageUrl"),
+            }
+            new_count += 1
+            page_new += 1
+            print(f"    Neu: {entry.get('title')} ({entry.get('date')})")
 
-    remaining = len(queue)
-    print(f"Crawl-Lauf beendet: {fetched_this_run} Seite(n) abgerufen, "
-          f"{remaining} noch offen (nächster Lauf macht weiter).")
+        print(f"  Seite {page}: {len(data)} Eintrag/Einträge, davon {page_new} neu")
+
+        if not is_first_run and page_new == 0:
+            print("  Keine neuen Folgen mehr auf dieser Seite - Abgleich fertig.")
+            break
+
+        page += 1
+
+    print(f"Sync fertig: {new_count} neue Episode(n). Insgesamt im Cache: {len(episodes_only(cache))}.")
 
 
 # --------------------------------------------------------------------------
@@ -381,7 +292,7 @@ def build_rss(cache, feed_self_url):
         items.append(f"""
     <item>
       <title>{escape(ep.get('title') or SHOW_TITLE)}</title>
-      <link>{escape(SHOW_BASE_URL)}</link>
+      <link>{escape(SHOW_PAGE_URL)}</link>
       <description>{escape(ep.get('description') or '')}</description>
       <itunes:subtitle>{escape(ep.get('lead') or '')}</itunes:subtitle>
       <enclosure url="{escape(ep['audio_url'])}" length="{ep.get('audio_length_bytes') or 0}" type="audio/mpeg"/>
@@ -396,7 +307,7 @@ def build_rss(cache, feed_self_url):
     cover_xml = ""
     if cover:
         cover_xml = f"""
-    <image><url>{escape(cover)}</url><title>{escape(SHOW_TITLE)}</title><link>{escape(SHOW_BASE_URL)}</link></image>
+    <image><url>{escape(cover)}</url><title>{escape(SHOW_TITLE)}</title><link>{escape(SHOW_PAGE_URL)}</link></image>
     <itunes:image href="{escape(cover)}"/>"""
 
     return f"""<?xml version="1.0" encoding="UTF-8"?>
@@ -404,7 +315,7 @@ def build_rss(cache, feed_self_url):
   <channel>
     <title>{escape(SHOW_TITLE)}</title>
     <description>{escape(SHOW_DESCRIPTION)}</description>
-    <link>{escape(SHOW_BASE_URL)}</link>
+    <link>{escape(SHOW_PAGE_URL)}</link>
     <language>{SHOW_LANGUAGE}</language>
     <itunes:author>{escape(SHOW_AUTHOR)}</itunes:author>
     <itunes:summary>{escape(SHOW_DESCRIPTION)}</itunes:summary>
@@ -438,11 +349,10 @@ def main():
     if removed:
         print(f"{removed} verfrühte(n) Eintrag/Einträge bereinigt")
 
-    print("Suche neu ausgestrahlte Folgen (Vorschau-Abgleich) ...")
-    discover_forward(cache)
+    show_id = find_show_id()
+    print(f"Show-ID: {show_id}")
 
-    print("Durchsuche Archiv rückwärts (Mehr-von-Kette) ...")
-    crawl(cache)
+    sync_episodes(cache, show_id)
     save_cache(cache)
 
     eps = episodes_only(cache)
