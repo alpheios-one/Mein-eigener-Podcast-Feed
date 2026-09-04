@@ -2,9 +2,14 @@ name: Update Maloney podcast feed
 
 on:
   schedule:
-    # täglich um 05:17 UTC (~07:17 Schweizer Zeit) - Uhrzeit bewusst "krumm"
-    # gewählt, um nicht exakt zur vollen Stunde mit vielen anderen Jobs zu laufen
-    - cron: "17 5 * * *"
+    - cron: "11 9 * * 0"
+    - cron: "15 9 * * 0"
+    - cron: "11 10 * * 0"
+    - cron: "15 10 * * 0"
+    - cron: "11 11 * * 0"
+    - cron: "15 11 * * 0"
+    - cron: "11 12 * * 0"
+    - cron: "15 12 * * 0"
   workflow_dispatch: {}   # erlaubt manuelles Auslösen über den "Run workflow"-Button
 
 permissions:
