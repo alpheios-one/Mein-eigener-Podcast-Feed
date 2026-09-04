@@ -1,18 +1,106 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0"
-     xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"
-     xmlns:atom="http://www.w3.org/2005/Atom">
+<rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>Maloney</title>
     <description>Die haarsträubenden Fälle des Philip Maloney. In der Hörspiel-Reihe ermittelt Privatdetektiv Maloney mit Schalk, Charme und unverkennbarer Raubeinigkeit.</description>
     <link>https://www.srf.ch/audio/maloney</link>
     <language>de-ch</language>
-    <generator>maloney-private-feed</generator>
     <itunes:author>Radio SRF 3</itunes:author>
     <itunes:summary>Die haarsträubenden Fälle des Philip Maloney. In der Hörspiel-Reihe ermittelt Privatdetektiv Maloney mit Schalk, Charme und unverkennbarer Raubeinigkeit.</itunes:summary>
     <itunes:explicit>false</itunes:explicit>
-    <itunes:category text="Society &amp; Culture"/>
+    <itunes:category text="Fiction"/>
     <atom:link href="https://alpheios-one.github.io/Mein-eigener-Podcast-Feed/78948daa-edb1-43c1-8e52-90a6f82a5efc/feed.xml" rel="self" type="application/rss+xml"/>
+    <image><url>https://download-media.srf.ch/world/image/audio/2019/10/914c917a4ca34148973d46b500665da4.jpg</url><title>Maloney</title><link>https://www.srf.ch/audio/maloney</link></image>
+    <itunes:image href="https://download-media.srf.ch/world/image/audio/2019/10/914c917a4ca34148973d46b500665da4.jpg"/>
 
+    <item>
+      <title>Der Mann auf der Brücke</title>
+      <link>https://www.srf.ch/audio/maloney</link>
+      <description>Michael Schacht als Philip Maloney
+Jodoc Seidel als Polizist
+Päivi Stalder als Conny Raabe
+Sandra Moser als Brigitte Volkart
+Ueli Beck als Hermann Sauber
+Carol Blanc als Katja Mischler
+Peter Fischli als Andreas Haberthür
+Peter Schneider als Erzähler
+
+Erstausstrahlung 2003</description>
+      <itunes:subtitle>Eine Journalistin fühlt sich bedroht und möchte, dass Maloney sie zu Recherchen begleitet. Sie glaubt, dass ein Mann, der vor zwei Jahren angeblich Selbstmord beging, in Tat und Wahrheit umgebracht wurde, und möchte dies in einem Zeitungsartikel nachweisen.</itunes:subtitle>
+      <enclosure url="https://download-media.srf.ch/world/audio/Maloney_radio/2026/08/Maloney_radio_AUDI20260927_NR_0005_5bee86cd12db4dd2b61ff3565f274bae.mp3" length="0" type="audio/mpeg"/>
+      <guid isPermaLink="false">841b08a8-ad09-3b27-b4a3-21927fb5751f</guid>
+      <pubDate>Sun, 27 Sep 2026 11:10:00 +0200</pubDate>
+      <itunes:author>Radio SRF 3</itunes:author>
+      <itunes:duration>25:03</itunes:duration>
+      <itunes:image href="https://download-media.srf.ch/world/image/audio/2019/10/914c917a4ca34148973d46b500665da4.jpg"/>
+      <itunes:explicit>false</itunes:explicit>
+    </item>
+    <item>
+      <title>Mord nach Plan</title>
+      <link>https://www.srf.ch/audio/maloney</link>
+      <description>Michael Schacht als Philip Maloney                  
+Jodoc Seidel als Polizist                        
+Alice Brüngger als Frau Walder                     
+Ueli Beck als  Herr Estermann                  
+Isabel Schaerer als  Frau Estermann / Jansen         
+Monika Schärer als  Katja                           
+Heinz Margot als  Herr Müller                          
+Peter Schneider als Erzähler      
+                                           
+Erstausstrahlung 1995</description>
+      <itunes:subtitle>Maloney erhält in einem Umschlag eine Audiokassette, auf der ihn eine Frauenstimme zu einem Waldstück dirigiert. Dort angekommen trifft Maloney auf die Polizei.</itunes:subtitle>
+      <enclosure url="https://download-media.srf.ch/world/audio/Maloney_radio/2026/08/Maloney_radio_AUDI20260920_NR_0005_8fc93067a8544942aced9dc7d78390d3.mp3" length="0" type="audio/mpeg"/>
+      <guid isPermaLink="false">9981873a-f66d-3fc9-8977-f34aabe64b73</guid>
+      <pubDate>Sun, 20 Sep 2026 11:10:00 +0200</pubDate>
+      <itunes:author>Radio SRF 3</itunes:author>
+      <itunes:duration>20:41</itunes:duration>
+      <itunes:image href="https://download-media.srf.ch/world/image/audio/2019/10/914c917a4ca34148973d46b500665da4.jpg"/>
+      <itunes:explicit>false</itunes:explicit>
+    </item>
+    <item>
+      <title>Alles unter Kontrolle</title>
+      <link>https://www.srf.ch/audio/maloney</link>
+      <description>Michael Schacht als Philip Maloney
+Tillbert Strahl als Polizist
+Barbara Terpoorten als Jaqueline Spreiter
+Andrej Togni als Heinz Durrer
+Sibilla Semadeni als Anja Schubert
+Tillbert Strahl als Wolfgang Prinz
+Sandra Moser als Ursina Franzen
+Peter Schneider als Erzähler
+
+Erstausstrahlung 2017</description>
+      <itunes:subtitle>Frau Schubert möchte, dass Maloney den Tod eines Freundes untersucht, der im Fluss ertrunken ist. Sie glaubt nicht an einen Unfall oder Selbstmord, hat aber auch keine Idee, wer Manuel umgebracht haben könnte. Sie ist sich aber sicher, dass sich Manuel am Flussufer mit jemanden getroffen hat.</itunes:subtitle>
+      <enclosure url="https://download-media.srf.ch/world/audio/Maloney_radio/2026/08/Maloney_radio_AUDI20260913_NR_0005_7e16def31f8e4ca9813ec5108baeff6d.mp3" length="0" type="audio/mpeg"/>
+      <guid isPermaLink="false">a19ff91c-25e4-3798-9b5a-28e39da2e39f</guid>
+      <pubDate>Sun, 13 Sep 2026 11:10:00 +0200</pubDate>
+      <itunes:author>Radio SRF 3</itunes:author>
+      <itunes:duration>26:03</itunes:duration>
+      <itunes:image href="https://download-media.srf.ch/world/image/audio/2019/10/914c917a4ca34148973d46b500665da4.jpg"/>
+      <itunes:explicit>false</itunes:explicit>
+    </item>
+    <item>
+      <title>Die Agenda</title>
+      <link>https://www.srf.ch/audio/maloney</link>
+      <description>Michael Schacht als Philip Maloney                  
+Jodoc Seidel als Polizist                        
+Alice  Brüngger als  Frau Potter                     
+Ueli Beck als  Herr Nase                       
+Monika Schärer als Frau Richner                    
+Heinz Margot als Herr Luft                       
+Carol Blanc als Frau Hotz                       
+Isabel Schaerer als Frau Born                       
+Peter Schneider als Erzähler
+
+Erstausstrahlung 1997</description>
+      <itunes:subtitle>Die junge und erfolgreiche Geschäftsfrau Richner vermisst ihre elektronische Agenda. Ein Dieb hat sich das Gerät geschnappt und möchte es der Besitzerin für viel Geld zurück verkaufen.</itunes:subtitle>
+      <enclosure url="https://download-media.srf.ch/world/audio/Maloney_radio/2026/08/Maloney_radio_AUDI20260906_NR_0005_d2e27f3aefe346b8b444245e9f87fbd4.mp3" length="0" type="audio/mpeg"/>
+      <guid isPermaLink="false">65152525-5d81-3670-ac2c-39921e4b5e9a</guid>
+      <pubDate>Sun, 06 Sep 2026 11:10:00 +0200</pubDate>
+      <itunes:author>Radio SRF 3</itunes:author>
+      <itunes:duration>25:57</itunes:duration>
+      <itunes:image href="https://download-media.srf.ch/world/image/audio/2019/10/914c917a4ca34148973d46b500665da4.jpg"/>
+      <itunes:explicit>false</itunes:explicit>
+    </item>
   </channel>
 </rss>
