@@ -1,0 +1,71 @@
+name: Update Maloney podcast feed
+
+on:
+  schedule:
+    # täglich um 05:17 UTC (~07:17 Schweizer Zeit) - Uhrzeit bewusst "krumm"
+    # gewählt, um nicht exakt zur vollen Stunde mit vielen anderen Jobs zu laufen
+    - cron: "17 5 * * *"
+  workflow_dispatch: {}   # erlaubt manuelles Auslösen über den "Run workflow"-Button
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build-feed:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repo auschecken
+        uses: actions/checkout@v4
+
+      - name: Python einrichten
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Feed bauen
+        env:
+          FEED_SECRET_TOKEN: ${{ secrets.FEED_SECRET_TOKEN }}
+          PAGES_BASE_URL: ${{ vars.PAGES_BASE_URL }}
+        run: python scripts/build_feed.py
+
+      - name: Änderungen committen (Cache + Feed)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/episodes_cache.json docs/
+          if git diff --cached --quiet; then
+            echo "Keine Änderungen."
+          else
+            git commit -m "Feed aktualisiert ($(date -u +%Y-%m-%dT%H:%M:%SZ))"
+            git push
+          fi
+
+  deploy-pages:
+    needs: build-feed
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Repo auschecken (neuster Stand nach Commit)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Pages konfigurieren
+        uses: actions/configure-pages@v5
+
+      - name: Artefakt aus docs/ bauen
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: "docs"
+
+      - name: Auf GitHub Pages deployen
+        id: deployment
+        uses: actions/deploy-pages@v4
