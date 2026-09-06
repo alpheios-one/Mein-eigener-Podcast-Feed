@@ -2,14 +2,10 @@ name: Update Maloney podcast feed
 
 on:
   schedule:
-    - cron: "11 9 * * 0"
-    - cron: "15 9 * * 0"
-    - cron: "11 10 * * 0"
-    - cron: "15 10 * * 0"
-    - cron: "11 11 * * 0"
-    - cron: "15 11 * * 0"
-    - cron: "11 12 * * 0"
-    - cron: "15 12 * * 0"
+    # Alle 4 Stunden, jeden Tag, zur Minute :23 (GitHub rät von :00/:15/:30/:45 ab).
+    # 10:23 UTC liegt 13 Min. (Winter) bzw. 73 Min. (Sommer) nach der Sonntags-
+    # ausstrahlung um 11:10 Uhr Schweizer Zeit. Zeitpunkte sind Best-Effort.
+    - cron: "23 2,6,10,14,18,22 * * *"
   workflow_dispatch: {}   # erlaubt manuelles Auslösen über den "Run workflow"-Button
 
 permissions:
@@ -24,6 +20,8 @@ concurrency:
 jobs:
   build-feed:
     runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.commit.outputs.changed }}
     steps:
       - name: Repo auschecken
         uses: actions/checkout@v4
@@ -40,19 +38,24 @@ jobs:
         run: python scripts/build_feed.py
 
       - name: Änderungen committen (Cache + Feed)
+        id: commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add data/episodes_cache.json docs/
           if git diff --cached --quiet; then
             echo "Keine Änderungen."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
           else
             git commit -m "Feed aktualisiert ($(date -u +%Y-%m-%dT%H:%M:%SZ))"
             git push
+            echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
   deploy-pages:
     needs: build-feed
+    # Nur deployen, wenn sich der Feed geändert hat - oder bei manuellem Start (zum Testen).
+    if: needs.build-feed.outputs.changed == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
