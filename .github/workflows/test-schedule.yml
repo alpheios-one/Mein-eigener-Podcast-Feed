@@ -1,0 +1,13 @@
+name: Test schedule trigger
+
+on:
+  schedule:
+    - cron: "*/1 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Zeitstempel ausgeben
+        run: echo "Automatischer Testlauf um $(date -u +%Y-%m-%dT%H:%M:%SZ) UTC"
