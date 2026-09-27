@@ -54,8 +54,8 @@ jobs:
 
   deploy-pages:
     needs: build-feed
-    # Nur deployen, wenn sich der Feed geändert hat - oder bei manuellem Start (zum Testen).
-    if: needs.build-feed.outputs.changed == 'true' || github.event_name == 'workflow_dispatch'
+    # Nur deployen, wenn sich der Feed geändert hat (auch bei externem Start via workflow_dispatch).
+    if: needs.build-feed.outputs.changed == 'true'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
