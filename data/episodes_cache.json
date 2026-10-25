@@ -1,4 +1,15 @@
 {
+  "034be78c-f9a4-3649-b4aa-eeb49edc36b2": {
+    "audio_length_bytes": 21526893,
+    "audio_url": "https://download-media.srf.ch/world/audio/Maloney_radio/2026/10/Maloney_radio_AUDI20261025_NR_0003_27bde052339a4037acda4fb573281ed3.mp3",
+    "date": "2026-10-25T11:10:00+01:00",
+    "description": "Michael Schacht als Philip Maloney                  \nJodoc Seidel als Polizist                          \nAlice Brüngger als Ottilia Gschwind                \nUeli Beck als Erwin Gschwind                  \nBarbara Terpoorten als Simone Linder                   \nPeter Fischli als Benno Dettling                  \nCarol Blanc als Anita Kuriger                   \nSamuel Schwarz als Tobias Renz                     \nPeter Schneider als Erzähler     \n            \nErstausstrahlung 2000",
+    "duration_ms": 1345420,
+    "id": "034be78c-f9a4-3649-b4aa-eeb49edc36b2",
+    "image_url": "https://download-media.srf.ch/world/image/audio/2019/10/086fc4382da7498f913dab28ae92501c.jpg",
+    "lead": "Maloney erhält eine anonyme Einladung an ein Seminar gegen Flugangst. Da dem Schreiben auch Geldscheine beigelegt sind, beschließt Maloney hinzugehen. Maloney trifft auf Herrn Dettling, dessen Frau tot in der gemeinsamen Wohnung aufgefunden worden ist.",
+    "title": "Flugangst"
+  },
   "081ba473-9477-33d4-a5d0-ff306c18d7da": {
     "audio_length_bytes": 21938925,
     "audio_url": "https://download-media.srf.ch/world/audio/Maloney_radio/2026/07/Maloney_radio_AUDI20260830_NR_0007_ebd395cbf2e14ea89c351880606e46d5.mp3",
